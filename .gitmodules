@@ -1,0 +1,3 @@
+[submodule "third_party/croc"]
+	path = third_party/croc
+	url = https://github.com/pulp-platform/croc.git

@@ -1,0 +1,92 @@
+name: croc
+version: 0.1.0
+spec: '0.1'
+kind: ip
+lang: sv
+identity:
+  slug: croc-tapeout-foreign
+  display_name: Croc
+  summary: 'PULP''s Croc, a small SoC around the CVE2 core with OBI inside, taped out in IHP 130 nm, taken as a black box.'
+  category: soc
+  subcategories:
+  - riscv
+  ip_family: croc
+  integration_profile: []
+  maturity: planned
+contract:
+  version: 1
+  ctrl:
+    shape: none
+    aw: 32
+    dw: 32
+features:
+  # 上游的配置是 croc_pkg.sv 里的 localparam，setup 把这两个改成读宏
+  idma: { type: bool, default: false, desc: 片上 iDMA（上游 iDMAEnable） }
+  pmp: { type: bool, default: false, desc: CVE2 的 PMP（上游 CorePMPEnable） }
+params:
+  # 单元测试用到 0 到 7 号口
+  gpioCount: { type: choice, values: [8, 16, 32], default: 16 }
+emit:
+- kind: foreign
+  lang: sv
+  top: croc_soc
+  setup: flist
+  rtl:
+  - { flist: build/flist/rtl.f }
+  defines:
+    CROC_IDMA_ENABLE: idma
+    CROC_PMP_ENABLE: pmp
+  params:
+    GpioCount: gpioCount
+  receipt:
+  - { symbol: "croc_pkg::iDMAEnable", expect: { eq: "{{idma}}" } }
+  - { symbol: "croc_pkg::CorePMPEnable", expect: { eq: "{{pmp}}" } }
+  clock:
+    port: clk_i
+  reset:
+    port: rst_ni
+    active: low
+    sync: false
+  ports:
+  - endpoint: jtag
+    kind: physical
+    type: Jtag
+    prefix: jtag_
+  - endpoint: uart
+    kind: physical
+    type: UartPins
+    map:
+      rx: uart_rx_i
+      tx: uart_tx_o
+  - endpoint: gpio
+    kind: physical
+    type: GpioPins
+    map:
+      i: gpio_i
+      o: gpio_o
+      oe: gpio_out_en_o
+  - endpoint: pins
+    kind: physical
+    type: CrocPins
+    map:
+      refClk: ref_clk_i
+      testMode: testmode_i
+      status: status_o
+  limits:
+  - 'SRAM 固定两块、每块 512 字：croc_pkg.sv 的地址图按这个写死，改块数或深度要连地址图一起改，本版不作旋钮'
+  - ref_clk_i 是 CLINT 计时的第二个时钟；规范目前一个包只声明一个时钟，先放进 pins
+  - SRAM 用 tech_cells_generic 的行为模型，流片要换宏（上游 IHP 那一支的 tc_sram_impl 不进这条路）
+  - 用户域（user_domain）是空的，它的 OBI 口在 croc_soc 里面，不对外
+tasks:
+  flist:
+    desc: 照上游用 bender 出文件表，croc_pkg.sv 的两个旋钮改成读宏
+    run: bash htest/flist.sh
+  sim:
+    desc: 照上游的仿真流程编 sw 与 Verilator 测试台，跑 helloworld、print_config 与单元测试
+    run: bash htest/sim.sh {{out}} {{knob.idma}} {{knob.pmp}} {{knob.gpioCount}} {{defines}}
+test:
+  upstream:
+  - { name: sim, task: sim, timeout: 3600 }
+targets:
+  foreign:
+    driver: foreign

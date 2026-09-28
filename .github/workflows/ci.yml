@@ -1,0 +1,15 @@
+name: ci
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  ip:
+    uses: Tape-Out/.github/.github/workflows/ip.yml@main
+    permissions:
+      contents: write
+    with:
+      # htest/flist.sh 照上游用 bender 出文件表
+      bender: v0.32.1
+      # htest/sim.sh 照上游编 sw 与 Verilator 测试台；Verilator 钉本机验过的那版
+      apt: gcc-riscv64-unknown-elf
+      verilator: v5.032
+      # 上游挂着 IHP 的两套 PDK 与 artistic，仿真用不到
+      nested-subs: none
