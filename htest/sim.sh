@@ -15,9 +15,10 @@ rm -rf "$O"
 mkdir -p "$O"
 say() { echo "$*"; exit 1; }
 
-# 上游的链接带 -lm：它的工具链镜像有 C 库，Ubuntu 的裸机 GCC 没有，而程序本来就不调 libm
+# 上游的链接带 -lm：它的工具链镜像有 C 库，Ubuntu 的裸机 GCC 没有，而程序本来就不调 libm。
+# --no-relax：crt0.S 的 `la sp` 不在 norelax 里，binutils 2.42 会把它松弛成 gp 相对，而 gp 这时还没设
 make -s -C "$U/sw" RISCV_PREFIX="$X" BINDIR="$O/bin" BUILDDIR="$O/sw" \
-  RISCV_LDFLAGS='-static -nostartfiles -lgcc $(RISCV_FLAGS)' > "$O/sw.log" 2>&1 ||
+  RISCV_LDFLAGS='-static -nostartfiles -Wl,--no-relax -lgcc $(RISCV_FLAGS)' > "$O/sw.log" 2>&1 ||
   say "sw 编不过：$(grep -m1 -iE 'error' "$O/sw.log")"
 
 verilator -Wno-fatal -Wno-style -Wno-BLKANDNBLK -Wno-WIDTHEXPAND -Wno-WIDTHTRUNC -Wno-WIDTHCONCAT \
